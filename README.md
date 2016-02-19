@@ -9,7 +9,7 @@ could easily be extended (pull requests are welcome!).
 
 Usage
 -----
-The Jar file can be build with [Gradle].
+The Jar file can be built with [Gradle].
 
     gradle assemble
 
