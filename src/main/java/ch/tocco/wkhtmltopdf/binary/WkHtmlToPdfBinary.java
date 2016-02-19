@@ -16,10 +16,12 @@
 
 package ch.tocco.wkhtmltopdf.binary;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -45,11 +47,50 @@ public class WkHtmlToPdfBinary {
         return instance;
     }
 
+    /**
+     * @return the URI of wkhtmltopdf binary.
+     */
     public URI getExe() {
         if (!new File(exe).exists()) { // it probably got deleted from tmp...
             exe = getFile(); // ... then create it again instead of failing
         }
         return exe;
+    }
+
+    /**
+     * Runs wkhtmltopdf with provided parameters. See wkhtmltopdf documentation for supported parameters:
+     * http://wkhtmltopdf.org/usage/wkhtmltopdf.txt
+     *
+     * On failure, a RuntimeException is thrown which contains wkhtmltopdf error output.
+     */
+    public void run(String[] params) {
+        String[] paramsWithExe = new String[params.length + 1];
+        paramsWithExe[0] = getExe().getPath();
+        System.arraycopy(params, 0, paramsWithExe, 1, params.length);
+        try {
+            Process process = new ProcessBuilder(paramsWithExe).start();
+            int exitStatus = process.waitFor();
+            if (exitStatus != 0) {
+                handleError(process);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static void handleError(Process process) throws IOException {
+        try (InputStreamReader inputStreamReader = new InputStreamReader(process.getErrorStream());
+             BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
+            StringBuilder stringBuilder = new StringBuilder("ERROR:");
+            String currentLine = bufferedReader.readLine();
+            while (currentLine != null) {
+                stringBuilder.append(currentLine).append('\n');
+                currentLine = bufferedReader.readLine();
+            }
+            throw new RuntimeException(String.format("Error running wkhtmltopdf: %s", stringBuilder.toString()));
+        }
     }
 
     private static URI getFile() {

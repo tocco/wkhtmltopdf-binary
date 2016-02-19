@@ -17,18 +17,22 @@ The resulting Jar file can be found in ```build/libs/```.
 
 [Gradle]: http://gradle.org
 
-In your Java code, you can get the path of the wkhtmltopdf binary.
+In your Java code, you can run the wkhtmltopdf binary.
 
 ```java
-URI exe = WkHtmlToPdfBinary.getInstance().getExe();
 String[] params = new String[]{
-    exe.getPath(),
     htmlFile.getCanonicalPath(),
     "--header-html",
     htmlHeaderFile.getCanonicalPath(),
     outputFile.getCanonicalPath()
 };
-Process process = new ProcessBuilder(params).start();
+WkHtmlToPdfBinary.getInstance().run(params);
+```
+
+You can also get the path of the wkhtmltopdf binary.
+
+```java
+URI uri = WkHtmlToPdfBinary.getInstance().getExe();
 ```
 
 Copyright and license
