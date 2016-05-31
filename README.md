@@ -4,7 +4,7 @@ wkhtmltopdf-binary
 wkhtmltopdf-binary provides the [wkhtmltopdf](http://wkhtmltopdf.org) binary
 packaged in a Jar as dependency for Java applications.
 
-Note: The current version only supports Linux (amd64) architecture, but this
+Note: The current version only supports Linux and OS X (amd64) architecture, but this
 could easily be extended (pull requests are welcome!).
 
 Usage
@@ -13,7 +13,7 @@ The Jar file can be built with [Gradle].
 
     gradle assemble
 
-The resulting Jar file can be found in ```build/libs/```.
+The resulting Jar files can be found in ```build/libs/```.
 
 [Gradle]: http://gradle.org
 
@@ -34,6 +34,16 @@ You can also get the path of the wkhtmltopdf binary.
 ```java
 URI uri = WkHtmlToPdfBinary.getInstance().getExe();
 ```
+
+Build Dependencies
+-----------------
+Build has been tested on Linux. Dependencies for building:
+
+* bash
+* tar
+* xar
+* cpio
+* gunzip
 
 Copyright and license
 ---------------------

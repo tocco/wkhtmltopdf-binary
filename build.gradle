@@ -23,30 +23,98 @@ apply plugin: "java"
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
 
+sourceSets {
+    main {
+        java {
+            srcDir "src"
+        }
+    }
+}
+
 group = "ch.tocco.wkhtmltopdf.binary"
 version = "0.12.3"
 
 import de.undercouch.gradle.tasks.download.Download
 
-task downloadFile(type: Download) {
-    src "http://download.gna.org/wkhtmltopdf/0.12/" + version + "/wkhtmltox-" + version + "_linux-generic-amd64.tar.xz"
+def downloadOrigin = "http://download.gna.org/wkhtmltopdf/0.12/"
+
+task downloadLinuxFile(type: Download) {
+    src downloadOrigin + version + "/wkhtmltox-" + version + "_linux-generic-amd64.tar.xz"
     dest new File(buildDir, "wkhtmltox.tar.xz")
 }
 
-task extractFile(dependsOn: downloadFile, type: Exec) {
+task downloadOsxFile(type: Download) {
+    src downloadOrigin + version + "/wkhtmltox-" + version + "_osx-cocoa-x86-64.pkg"
+    dest new File(buildDir, "wkhtmltox.pkg")
+}
+
+task extractLinuxFile(dependsOn: downloadLinuxFile, type: Exec) {
+    def linuxBuildDir = new File(buildDir.toString() + "/linux/")
+    linuxBuildDir.mkdirs()
     // Gradle does not support tar.xf files, otherwise this could be done with: from tarTree(resources.gzip(...))
     executable "tar"
-    args "-xf", downloadFile.dest,
-            "-C", buildDir.toString(),
+    args "-xf", downloadLinuxFile.dest,
+            "-C", linuxBuildDir.toString(),
             "--strip-components=2", "wkhtmltox/bin/wkhtmltopdf"
 }
 
-jar {
+task extractPayload(dependsOn: downloadOsxFile, type: Exec) {
+    def osxBuildDir = new File(buildDir.toString() + "/osx/")
+    osxBuildDir.mkdirs()
+    executable "xar"
+    args "-xf", downloadOsxFile.dest, "-C", osxBuildDir.toString(), "Payload"
+}
+
+task extractAppTar(dependsOn: extractPayload, type: Exec) {
+    commandLine "bash", "-c", "gunzip -c ${buildDir.toString()}/osx/Payload | cpio -i --directory=${buildDir.toString()}/osx/"
+}
+
+task extractBinary(dependsOn: extractAppTar, type: Exec) {
+    executable "tar"
+    args "-xf", buildDir.toString() + "/osx/usr/local/share/wkhtmltox-installer/app.tar.xz",
+            "-C", buildDir.toString() + "/osx/",
+            "--strip-components=2"
+}
+
+task extractOsxFile(dependsOn: downloadOsxFile) {
     doFirst {
-        tasks.downloadFile.execute()
-        tasks.extractFile.execute()
+        tasks.extractPayload.execute()
+        tasks.extractAppTar.execute()
+        tasks.extractBinary.execute()
     }
-    into ('/ch/tocco/wkhtmltopdf/binary') {
-        from file(buildDir.toString() + "/wkhtmltopdf")
+}
+
+task linuxJar(type: Jar) {
+    from (sourceSets.main.output) {
+        include "**"
     }
+    doFirst {
+        tasks.downloadLinuxFile.execute()
+        tasks.extractLinuxFile.execute()
+    }
+    into ("/ch/tocco/wkhtmltopdf/binary") {
+        from file(buildDir.toString() + "/linux/wkhtmltopdf")
+    }
+    classifier = "linux"
+}
+
+task osxJar(type: Jar) {
+    from (sourceSets.main.output) {
+        include "**"
+    }
+    doFirst {
+        tasks.downloadOsxFile.execute()
+        tasks.extractOsxFile.execute()
+    }
+    into ("/ch/tocco/wkhtmltopdf/binary") {
+        from file(buildDir.toString() + "/osx/wkhtmltopdf")
+    }
+    classifier = "osx"
+}
+
+jar.enabled = false // default jar with java classes only is not useful
+
+artifacts {
+    archives linuxJar
+    archives osxJar
 }
