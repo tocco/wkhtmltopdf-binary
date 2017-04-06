@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.lang.ProcessBuilder.Redirect;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -68,7 +69,10 @@ public class WkHtmlToPdfBinary {
         paramsWithExe[0] = getExe().getPath();
         System.arraycopy(params, 0, paramsWithExe, 1, params.length);
         try {
-            Process process = new ProcessBuilder(paramsWithExe).start();
+            Process process = new ProcessBuilder(paramsWithExe)
+                    .redirectOutput(Redirect.to(new File("/dev/null")))
+                    .redirectError(Redirect.to(new File("/dev/null")))
+                    .start();
             int exitStatus = process.waitFor();
             if (exitStatus != 0) {
                 handleError(process);
