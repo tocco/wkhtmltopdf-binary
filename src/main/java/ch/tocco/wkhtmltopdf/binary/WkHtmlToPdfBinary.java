@@ -16,13 +16,7 @@
 
 package ch.tocco.wkhtmltopdf.binary;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -69,13 +63,16 @@ public class WkHtmlToPdfBinary {
         paramsWithExe[0] = getExe().getPath();
         System.arraycopy(params, 0, paramsWithExe, 1, params.length);
         try {
+            File logFile = File.createTempFile(WKHTMLTOPDF, ".log");
+            logFile.deleteOnExit();
+
             Process process = new ProcessBuilder(paramsWithExe)
                     .redirectOutput(Redirect.to(new File("/dev/null")))
-                    .redirectError(Redirect.to(new File("/dev/null")))
+                    .redirectError(Redirect.to(logFile))
                     .start();
             int exitStatus = process.waitFor();
             if (exitStatus != 0) {
-                handleError(process);
+                handleError(exitStatus, logFile);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -84,17 +81,15 @@ public class WkHtmlToPdfBinary {
         }
     }
 
-    private static void handleError(Process process) throws IOException {
-        try (InputStreamReader inputStreamReader = new InputStreamReader(process.getErrorStream());
-             BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
-            StringBuilder stringBuilder = new StringBuilder("ERROR:");
-            String currentLine = bufferedReader.readLine();
-            while (currentLine != null) {
-                stringBuilder.append(currentLine).append('\n');
-                currentLine = bufferedReader.readLine();
-            }
-            throw new RuntimeException(String.format("Error running wkhtmltopdf: %s", stringBuilder.toString()));
+    private static void handleError(int exitStatus, File logFile) throws IOException {
+        RandomAccessFile readableLogFile = new RandomAccessFile(logFile, "r");
+        StringBuilder stringBuilder = new StringBuilder("ERROR:\n");
+        String currentLine = readableLogFile.readLine();
+        while (currentLine != null) {
+            stringBuilder.append(currentLine).append('\n');
+            currentLine = readableLogFile.readLine();
         }
+        throw new RuntimeException(String.format("wkhtmltopdf exited with code %d: %s", exitStatus, stringBuilder.toString()));
     }
 
     private static URI getFile() {
