@@ -32,11 +32,11 @@ sourceSets {
 }
 
 group = "ch.tocco.wkhtmltopdf.binary"
-version = "0.12.3"
+version = "0.12.4"
 
 import de.undercouch.gradle.tasks.download.Download
 
-def downloadOrigin = "http://download.gna.org/wkhtmltopdf/0.12/"
+def downloadOrigin = "https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/"
 
 task downloadLinuxFile(type: Download) {
     src downloadOrigin + version + "/wkhtmltox-" + version + "_linux-generic-amd64.tar.xz"
@@ -61,12 +61,12 @@ task extractLinuxFile(dependsOn: downloadLinuxFile, type: Exec) {
 task extractPayload(dependsOn: downloadOsxFile, type: Exec) {
     def osxBuildDir = new File(buildDir.toString() + "/osx/")
     osxBuildDir.mkdirs()
-    executable "xar"
-    args "-xf", downloadOsxFile.dest, "-C", osxBuildDir.toString(), "Payload"
+    executable "7z"
+    args "x", downloadOsxFile.dest, "-w", "-o" + osxBuildDir.toString(), "-y"
 }
 
 task extractAppTar(dependsOn: extractPayload, type: Exec) {
-    commandLine "bash", "-c", "gunzip -c ${buildDir.toString()}/osx/Payload | cpio -i --directory=${buildDir.toString()}/osx/"
+    commandLine "bash", "-c", "( cd ${buildDir.toString()}/osx/; cpio -i; ) <${buildDir.toString()}/osx/Payload~"
 }
 
 task extractBinary(dependsOn: extractAppTar, type: Exec) {

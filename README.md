@@ -1,7 +1,7 @@
 wkhtmltopdf-binary
 ==================
 
-wkhtmltopdf-binary provides the [wkhtmltopdf](http://wkhtmltopdf.org) binary
+wkhtmltopdf-binary provides the [wkhtmltopdf](https://wkhtmltopdf.org) binary
 packaged in a Jar as dependency for Java applications.
 
 Note: The current version only supports Linux and OS X (amd64) architecture, but this
@@ -15,7 +15,7 @@ The Jar file can be built with [Gradle].
 
 The resulting Jar files can be found in ```build/libs/```.
 
-[Gradle]: http://gradle.org
+[Gradle]: https://gradle.org
 
 In your Java code, you can run the wkhtmltopdf binary.
 
@@ -41,7 +41,7 @@ Build has been tested on Linux. Dependencies for building:
 
 * bash
 * tar
-* xar
+* 7z
 * cpio
 * gunzip
 
@@ -54,7 +54,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this work except in compliance with the License.
 You may obtain a copy of the License in the LICENSE file, or at:
 
-  [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
+  [https://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
