@@ -20,6 +20,10 @@ import java.io.*;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.HashSet;
 
 /**
  * @author Urs Wolfer
@@ -62,8 +66,12 @@ public class WkHtmlToPdfBinary {
         String[] paramsWithExe = new String[params.length + 1];
         paramsWithExe[0] = getExe().getPath();
         System.arraycopy(params, 0, paramsWithExe, 1, params.length);
+        File logFile = null;
         try {
-            File logFile = File.createTempFile(WKHTMLTOPDF, ".log");
+            HashSet<PosixFilePermission> perms = new HashSet<>();
+            perms.add(PosixFilePermission.OWNER_READ);
+            perms.add(PosixFilePermission.OWNER_WRITE);
+            logFile = Files.createTempFile(WKHTMLTOPDF, ".log", PosixFilePermissions.asFileAttribute(perms)).toFile();
             logFile.deleteOnExit();
 
             Process process = new ProcessBuilder(paramsWithExe)
@@ -78,6 +86,10 @@ public class WkHtmlToPdfBinary {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        } finally {
+            if(logFile != null) {
+                logFile.delete();
+            }
         }
     }
 
