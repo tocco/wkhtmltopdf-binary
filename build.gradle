@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Tocco AG
+ * Copyright 2020 Tocco AG
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,19 @@
  */
 
 plugins {
-    id "de.undercouch.download" version "2.1.0"
+    id "de.undercouch.download" version "4.0.2"
 }
 
 apply plugin: "java"
+apply plugin: 'de.undercouch.download'
 
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
+import de.undercouch.gradle.tasks.download.Download
+
+sourceCompatibility = 11
+targetCompatibility = 11
+
+group = "ch.tocco.wkhtmltopdf.binary"
+version = "0.12.5"
 
 sourceSets {
     main {
@@ -31,83 +37,89 @@ sourceSets {
     }
 }
 
-group = "ch.tocco.wkhtmltopdf.binary"
-version = "0.12.4"
-
-import de.undercouch.gradle.tasks.download.Download
+def majorVersion = "0.12.5"
+def minorVersion = "0.12.5-1"
 
 def downloadOrigin = "https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/"
 
+def linuxBuildDir = new File(buildDir.toString(), "linux")
+def osxBuildDir = new File(buildDir.toString(), "osx")
+
 task downloadLinuxFile(type: Download) {
-    src downloadOrigin + version + "/wkhtmltox-" + version + "_linux-generic-amd64.tar.xz"
-    dest new File(buildDir, "wkhtmltox.tar.xz")
+    src downloadOrigin + majorVersion + "/wkhtmltox_" + minorVersion + ".buster_amd64.deb"
+    dest new File(buildDir, "wkhtmltox.deb")
 }
 
 task downloadOsxFile(type: Download) {
-    src downloadOrigin + version + "/wkhtmltox-" + version + "_osx-cocoa-x86-64.pkg"
+    src downloadOrigin + majorVersion + "/wkhtmltox-" + minorVersion + ".macos-cocoa.pkg"
     dest new File(buildDir, "wkhtmltox.pkg")
 }
 
-task extractLinuxFile(dependsOn: downloadLinuxFile, type: Exec) {
-    def linuxBuildDir = new File(buildDir.toString() + "/linux/")
+task extractDeb(type: Exec) {
+    dependsOn "downloadLinuxFile"
+
     linuxBuildDir.mkdirs()
-    // Gradle does not support tar.xf files, otherwise this could be done with: from tarTree(resources.gzip(...))
-    executable "tar"
-    args "-xf", downloadLinuxFile.dest,
-            "-C", linuxBuildDir.toString(),
-            "--strip-components=2", "wkhtmltox/bin/wkhtmltopdf"
+
+    executable "7z"
+    args "x", downloadLinuxFile.dest, "-w", "-o" + linuxBuildDir.toString(), "-y"
 }
 
-task extractPayload(dependsOn: downloadOsxFile, type: Exec) {
-    def osxBuildDir = new File(buildDir.toString() + "/osx/")
+task extractLinuxFile(type: Exec) {
+    dependsOn "extractDeb"
+
+    executable "tar"
+    args "-xf", new File(linuxBuildDir, "data.tar.xz").toString(),
+        "-C", linuxBuildDir.toString(),
+        "--strip-components=4"
+}
+
+task extractPayload(type: Exec) {
+    dependsOn "downloadOsxFile"
+
     osxBuildDir.mkdirs()
     executable "7z"
     args "x", downloadOsxFile.dest, "-w", "-o" + osxBuildDir.toString(), "-y"
 }
 
-task extractAppTar(dependsOn: extractPayload, type: Exec) {
+task extractTar(type: Exec) {
+    dependsOn "extractPayload"
+
     commandLine "bash", "-c", "( cd ${buildDir.toString()}/osx/; cpio -i; ) <${buildDir.toString()}/osx/Payload~"
 }
 
-task extractBinary(dependsOn: extractAppTar, type: Exec) {
+task extractBinary(type: Exec) {
+    dependsOn 'extractTar'
+
     executable "tar"
-    args "-xf", buildDir.toString() + "/osx/usr/local/share/wkhtmltox-installer/app.tar.xz",
-            "-C", buildDir.toString() + "/osx/",
+    args "-xf", osxBuildDir.toString() + "/usr/local/share/wkhtmltox-installer/wkhtmltox.tar.gz",
+            "-C", osxBuildDir.toString(),
             "--strip-components=2"
 }
 
-task extractOsxFile(dependsOn: downloadOsxFile) {
-    doFirst {
-        tasks.extractPayload.execute()
-        tasks.extractAppTar.execute()
-        tasks.extractBinary.execute()
-    }
+task extractOsxFile() {
+    dependsOn "extractBinary"
 }
 
 task linuxJar(type: Jar) {
+    dependsOn "extractLinuxFile"
+
     from (sourceSets.main.output) {
         include "**"
     }
-    doFirst {
-        tasks.downloadLinuxFile.execute()
-        tasks.extractLinuxFile.execute()
-    }
     into ("/ch/tocco/wkhtmltopdf/binary") {
-        from file(buildDir.toString() + "/linux/wkhtmltopdf")
+        from file(linuxBuildDir.toString() + "/wkhtmltopdf")
     }
     classifier = "linux"
 }
 
 task osxJar(type: Jar) {
+    dependsOn "extractOsxFile"
+
     from (sourceSets.main.output) {
         include "**"
     }
-    doFirst {
-        tasks.downloadOsxFile.execute()
-        tasks.extractOsxFile.execute()
-    }
     into ("/ch/tocco/wkhtmltopdf/binary") {
-        from file(buildDir.toString() + "/osx/wkhtmltopdf")
+        from file(osxBuildDir.toString() + "/wkhtmltopdf")
     }
     classifier = "osx"
 }
